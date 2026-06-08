@@ -50,6 +50,7 @@ GPU : Nvidia Geforce RTX 4090 24GB
 - [x] Toast notifications for success and error states
 - [x] Loading states on all async actions
 - [x] Workspace summary tile (total documents, ready documents, total chunks)
+- [x] Auto-refresh for document ingestion status
 
 ## Project Structure
 
@@ -135,7 +136,5 @@ All API calls are defined in [`src/api.ts`](src/api.ts). The frontend communicat
 | `POST` | `/rag/query` | Ask a question and get a grounded answer |
 
 ## Current Limitations
-
-- [ ] No polling/auto-refresh for document ingestion status (manual refresh required)
 - [ ] No pagination for large document lists
 - [ ] No markdown rendering for generated answers
