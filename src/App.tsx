@@ -5,6 +5,7 @@ import {
   listDocuments,
   login,
   logout,
+  openDocumentEventSource,
   register,
   uploadPdf,
 } from './api'
@@ -32,6 +33,7 @@ function App() {
   )
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   function showToast(msg: string, isError = false) {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -54,6 +56,32 @@ function App() {
     )
   }
 
+  function connectEventSource(activeToken: string) {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
+    const es = openDocumentEventSource(activeToken)
+    es.addEventListener('document_status', (event) => {
+      const data = JSON.parse(event.data) as {
+        document_id: string
+        status: string
+        chunk_count: number
+        stored_chunk_count: number
+      }
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.document_id === data.document_id
+            ? { ...doc, status: data.status, chunk_count: data.chunk_count, stored_chunk_count: data.stored_chunk_count }
+            : doc
+        )
+      )
+    })
+    es.onerror = () => {
+      es.close()
+    }
+    eventSourceRef.current = es
+  }
+
   async function run(action: string, task: () => Promise<void>) {
     setLoading(action)
     setError('')
@@ -74,9 +102,7 @@ function App() {
 
   useEffect(() => {
     if (!token) return
-
     let isCurrent = true
-
     async function loadInitialDocuments() {
       try {
         const data = await listDocuments(token)
@@ -89,11 +115,11 @@ function App() {
         }
       }
     }
-
     void loadInitialDocuments()
-
+    connectEventSource(token)
     return () => {
       isCurrent = false
+      eventSourceRef.current?.close()
     }
   }, [token])
 
@@ -112,6 +138,7 @@ function App() {
       localStorage.setItem('ragtfm_token', data.access_token)
       setToken(data.access_token)
       showToast('Signed in.')
+      connectEventSource(data.access_token)
       await refreshDocuments(data.access_token)
     })
   }
@@ -123,6 +150,8 @@ function App() {
       }
       localStorage.removeItem('ragtfm_token')
       setToken('')
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
       setDocuments([])
       setRagResult(null)
       showToast('Signed out.')
@@ -293,9 +322,9 @@ function App() {
                         checked={isSelected}
                         onChange={() => toggleDocumentSelection(document.document_id)}
                       />
-                      <div>
-                        <h3>{document.original_filename}</h3>
-                        <p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 title={document.original_filename}>{document.original_filename}</h3>
+                        <p title={`${document.status} · ${document.stored_chunk_count}/${document.chunk_count} chunks · ${formatBytes(document.size_bytes)}`}>
                           {document.status} · {document.stored_chunk_count}/{document.chunk_count} chunks ·{' '}
                           {formatBytes(document.size_bytes)}
                         </p>

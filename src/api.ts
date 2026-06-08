@@ -152,6 +152,10 @@ export function deleteDocument(token: string, documentId: string) {
   })
 }
 
+export function openDocumentEventSource(token: string): EventSource {
+  return new EventSource(`${API_BASE_URL}/documents/events?token=${encodeURIComponent(token)}`)
+}
+
 export function askRag(token: string, query: string, limit: number, documentIds?: string[]) {
   return request<RagResponse>('/rag/query', {
     method: 'POST',

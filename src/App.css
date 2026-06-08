@@ -296,6 +296,7 @@ small {
   gap: 12px;
   justify-content: space-between;
   padding: 14px;
+  min-width: 0;
 }
 
 .document-row h3,
@@ -303,6 +304,13 @@ small {
   color: var(--text-h);
   font-size: 16px;
   margin: 0 0 4px;
+}
+
+.document-row h3,
+.document-row p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .document-row p,
@@ -362,7 +370,12 @@ details p {
   align-items: flex-start;
   gap: 0.75rem;
   flex: 1;
+  min-width: 0;
   cursor: pointer;
+}
+
+.document-select-label > div {
+  min-width: 0;
 }
 
 .document-select-label input[type="checkbox"] {
