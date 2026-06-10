@@ -439,6 +439,7 @@ function App() {
             <div className="doc-list">
               {documents.map(doc => {
                 const isReady = doc.status.toUpperCase() === 'READY'
+                const isProcessing = doc.status.toUpperCase() === 'PROCESSING'
                 const isSelected = selectedDocumentIds.includes(doc.document_id)
                 const isDeleting = loading === `delete-${doc.document_id}`
                 return (
@@ -465,7 +466,7 @@ function App() {
                       type="button"
                       className="btn btn--danger btn--sm"
                       onClick={e => { e.preventDefault(); handleDelete(doc.document_id) }}
-                      disabled={loading !== null}
+                      disabled={loading !== null || isProcessing}
                     >
                       {isDeleting ? '…' : 'Delete'}
                     </button>

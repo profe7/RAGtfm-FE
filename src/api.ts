@@ -93,7 +93,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const error = await response.json().catch(() => null)
-    throw new Error(error?.detail ?? `Request failed with ${response.status}`)
+    const detail = error?.detail
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : typeof detail === 'object' && detail !== null
+          ? (detail.message ?? JSON.stringify(detail))
+          : `Request failed with ${response.status}`
+    throw new Error(message)
   }
 
   if (response.status === 204) return undefined as T
