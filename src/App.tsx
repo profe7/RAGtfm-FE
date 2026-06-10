@@ -178,6 +178,7 @@ function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
   const answerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Pagination ── 
   const [currentPage, setCurrentPage] = useState(1)
@@ -299,6 +300,7 @@ function App() {
     void run('upload', async () => {
       await uploadPdf(token, selectedFile)
       setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       showToast('PDF uploaded — processing has started.')
       await refreshDocuments()
     })
@@ -381,6 +383,7 @@ function App() {
           <form onSubmit={handleUpload}>
             <label className="file-drop">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="application/pdf"
                 onChange={e => setSelectedFile(e.target.files?.[0] ?? null)}
