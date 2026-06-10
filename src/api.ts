@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export type TokenResponse = {
   access_token: string
   token_type: string
@@ -73,33 +75,32 @@ export type RagResponse = {
   sources: RetrievedChunk[]
 }
 
-type RequestOptions = RequestInit & {
-  token?: string
-}
+export type RagStreamEvent =
+  | { type: 'sources'; data: RetrievedChunk[] }
+  | { type: 'token'; data: string }
+  | { type: 'metrics'; data: Record<string, number> }
+  | { type: 'error'; data: string }
+
+// ─── HTTP helper ──────────────────────────────────────────────────────────────
+
+type RequestOptions = RequestInit & { token?: string }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers)
+  if (options.token) headers.set('Authorization', `Bearer ${options.token}`)
 
-  if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`)
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
 
   if (!response.ok) {
     const error = await response.json().catch(() => null)
     throw new Error(error?.detail ?? `Request failed with ${response.status}`)
   }
 
-  if (response.status === 204) {
-    return undefined as T
-  }
-
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export function register(email: string, password: string) {
   return request<UserResponse>('/auth/register', {
@@ -110,10 +111,7 @@ export function register(email: string, password: string) {
 }
 
 export function login(email: string, password: string) {
-  const form = new URLSearchParams()
-  form.set('username', email)
-  form.set('password', password)
-
+  const form = new URLSearchParams({ username: email, password })
   return request<TokenResponse>('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -122,49 +120,93 @@ export function login(email: string, password: string) {
 }
 
 export function logout(token: string) {
-  return request<{ detail: string }>('/auth/logout', {
-    method: 'POST',
-    token,
-  })
+  return request<{ detail: string }>('/auth/logout', { method: 'POST', token })
 }
 
+// ─── Documents ────────────────────────────────────────────────────────────────
+
 export function listDocuments(token: string) {
-  return request<{ count: number; documents: DocumentItem[] }>('/documents', {
-    token,
-  })
+  return request<{ count: number; documents: DocumentItem[] }>('/documents', { token })
 }
 
 export function uploadPdf(token: string, file: File) {
   const form = new FormData()
   form.append('file', file)
-
-  return request<IngestPdfResponse>('/ingest/pdf', {
-    method: 'POST',
-    token,
-    body: form,
-  })
+  return request<IngestPdfResponse>('/ingest/pdf', { method: 'POST', token, body: form })
 }
 
 export function deleteDocument(token: string, documentId: string) {
-  return request<DeleteDocumentResponse>(`/documents/${documentId}`, {
-    method: 'DELETE',
-    token,
-  })
+  return request<DeleteDocumentResponse>(`/documents/${documentId}`, { method: 'DELETE', token })
 }
 
 export function openDocumentEventSource(token: string): EventSource {
   return new EventSource(`${API_BASE_URL}/documents/events?token=${encodeURIComponent(token)}`)
 }
 
-export function askRag(token: string, query: string, limit: number, documentIds?: string[]) {
-  return request<RagResponse>('/rag/query', {
+// ─── RAG streaming ────────────────────────────────────────────────────────────
+
+export async function* askRag(
+  token: string,
+  query: string,
+  limit: number,
+  documentIds?: string[],
+): AsyncGenerator<RagStreamEvent, void, unknown> {
+  const response = await fetch(`${API_BASE_URL}/rag/query`, {
     method: 'POST',
-    token,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       query,
       limit,
-      ...(documentIds && documentIds.length > 0 ? { document_ids: documentIds } : {}),
+      ...(documentIds?.length ? { document_ids: documentIds } : {}),
     }),
   })
+
+  if (!response.ok || !response.body) {
+    const errorText = await response.text()
+    throw new Error(`Stream request failed: ${response.status} – ${errorText}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let lineBuffer = ''
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+
+      if (done) {
+        // Flush any remaining partial line
+        const remaining = lineBuffer.trim()
+        if (remaining) {
+          const event = tryParseLine(remaining)
+          if (event) yield event
+        }
+        break
+      }
+
+      lineBuffer += decoder.decode(value, { stream: true })
+      const lines = lineBuffer.split('\n')
+      lineBuffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        const event = tryParseLine(trimmed)
+        if (event) yield event
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+function tryParseLine(line: string): RagStreamEvent | null {
+  try {
+    return JSON.parse(line) as RagStreamEvent
+  } catch {
+    return null
+  }
 }
