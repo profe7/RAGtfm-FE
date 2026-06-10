@@ -179,6 +179,13 @@ function App() {
   const eventSourceRef = useRef<EventSource | null>(null)
   const answerRef = useRef<HTMLDivElement>(null)
 
+  // ── Pagination ── 
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalDocs, setTotalDocs] = useState(0)
+  const PAGE_SIZE = 5
+  const currentPageRef = useRef(1)
+
   const readyDocuments = useMemo(
     () => documents.filter(d => d.status.toUpperCase() === 'READY'),
     [documents],
@@ -229,10 +236,12 @@ function App() {
   }
 
   const refreshDocuments = useCallback(
-    async (activeToken = token) => {
+    async (activeToken = token, page = currentPageRef.current) => {
       if (!activeToken) return
-      const data = await listDocuments(activeToken)
+      const data = await listDocuments(activeToken, page, PAGE_SIZE)
       setDocuments(data.documents)
+      setTotalPages(data.pages)
+      setTotalDocs(data.total)
     },
     [token],
   )
@@ -240,8 +249,13 @@ function App() {
   useEffect(() => {
     if (!token) return
     let active = true
-    listDocuments(token)
-      .then(data => { if (active) setDocuments(data.documents) })
+    listDocuments(token, 1, PAGE_SIZE)
+      .then(data => {
+        if (!active) return
+        setDocuments(data.documents)
+        setTotalPages(data.pages)
+        setTotalDocs(data.total)
+      })
       .catch(err => { if (active) setError(err instanceof Error ? err.message : 'Could not load documents') })
     connectEventSource(token)
     return () => {
@@ -356,7 +370,7 @@ function App() {
         </div>
 
         <div className="sidebar-stats">
-          <StatCard label="Documents" value={documents.length.toString()} />
+          <StatCard label="Documents" value={totalDocs.toString()} />
           <StatCard label="Ready" value={readyDocuments.length.toString()} />
           <StatCard label="Chunks" value={totalChunks.toLocaleString()} />
         </div>
@@ -457,7 +471,37 @@ function App() {
               })}
             </div>
           )}
-
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="btn btn--ghost btn--sm"
+                disabled={currentPage <= 1 || loading !== null}
+                onClick={() => {
+                  const p = currentPage - 1
+                  currentPageRef.current = p
+                  setCurrentPage(p)
+                  void refreshDocuments(token, p)
+                }}
+              >
+                ← Prev
+              </button>
+              <span className="pagination-info">
+                Page {currentPage} of {totalPages} ({totalDocs} total)
+              </span>
+              <button
+                className="btn btn--ghost btn--sm"
+                disabled={currentPage >= totalPages || loading !== null}
+                onClick={() => {
+                  const p = currentPage + 1
+                  currentPageRef.current = p
+                  setCurrentPage(p)
+                  void refreshDocuments(token, p)
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
           {readyDocuments.length > 0 && (
             <p className="doc-filter-hint">
               {selectedDocumentIds.length === 0

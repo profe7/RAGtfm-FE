@@ -125,8 +125,19 @@ export function logout(token: string) {
 
 // ─── Documents ────────────────────────────────────────────────────────────────
 
-export function listDocuments(token: string) {
-  return request<{ count: number; documents: DocumentItem[] }>('/documents', { token })
+export type DocumentListResponse = {
+  total: number
+  page: number
+  page_size: number
+  pages: number
+  documents: DocumentItem[]
+}
+
+export function listDocuments(token: string, page = 1, pageSize = 10) {
+  return request<DocumentListResponse>(
+    `/documents?page=${page}&page_size=${pageSize}`,
+    { token },
+  )
 }
 
 export function uploadPdf(token: string, file: File) {
