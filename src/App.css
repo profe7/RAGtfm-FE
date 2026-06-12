@@ -169,6 +169,125 @@ html, body, #root {
 }
 
 /* ─── App layout ──────────────────────────────────────────────────────────── */
+/* ─── Backend readiness ───────────────────────────────────────────────────── */
+.backend-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 0%, rgba(91,141,239,0.08) 0%, transparent 60%), var(--bg);
+  padding: 24px;
+}
+
+.backend-gate-card {
+  width: 100%;
+  max-width: 430px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  text-align: center;
+}
+
+.backend-gate-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.backend-gate-copy {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.health-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 22px 0 16px;
+  text-align: left;
+}
+
+.health-check-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.health-check-detail {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backend-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 18px;
+}
+
+.health-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 16px;
+}
+
+.health-panel--ready { border-color: rgba(52, 193, 122, 0.35); }
+.health-panel--bad { border-color: rgba(224, 82, 82, 0.55); }
+
+.health-panel-head,
+.health-mini-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.health-panel-head {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.health-mini-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.health-mini-item {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--badge-pending);
+}
+
+.health-dot--ok { background: var(--badge-ready); }
+.health-dot--bad { background: var(--danger); }
+
 .app-root {
   display: flex;
   height: 100vh;

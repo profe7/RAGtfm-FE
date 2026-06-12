@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import {
   askRag,
+  checkBackendReady,
   deleteDocument,
   listDocuments,
   login,
@@ -10,7 +12,7 @@ import {
   uploadPdf,
 } from './api'
 import './App.css'
-import type { DocumentItem, RagResponse } from './api'
+import type { DocumentItem, HealthReadyResult, RagResponse } from './api'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,25 @@ function fmtMs(ms: number) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${Math.round(ms)}ms`
 }
 
+const HEALTH_RETRY_MS = 7000
+
+const INITIAL_HEALTH: HealthReadyResult = {
+  ready: false,
+  status: 'checking',
+  checks: {},
+}
+
+function formatCheckName(name: string) {
+  const labels: Record<string, string> = {
+    postgres: 'Postgres',
+    redis: 'Redis',
+    chroma: 'ChromaDB',
+    s3: 'S3',
+    ollama: 'Ollama',
+  }
+  return labels[name] ?? name
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -33,9 +54,80 @@ function StatusBadge({ status }: { status: string }) {
     s === 'FAILED' ? 'var(--badge-fail)' :
     'var(--badge-pending)'
   return (
-    <span className="status-badge" style={{ '--badge-color': color } as React.CSSProperties}>
+    <span className="status-badge" style={{ '--badge-color': color } as CSSProperties}>
       {s === 'READY' ? '✓' : s === 'FAILED' ? '✕' : '⟳'} {status}
     </span>
+  )
+}
+
+function BackendGate({
+  health,
+  checked,
+}: {
+  health: HealthReadyResult
+  checked: boolean
+}) {
+  const checks = Object.entries(health.checks)
+  const title = checked ? 'Backend is starting' : 'Checking backend'
+  const detail = health.error || (
+    checked
+      ? 'One or more required services are unavailable. Retrying automatically.'
+      : 'Verifying API readiness before loading the app.'
+  )
+
+  return (
+    <div className="backend-gate">
+      <div className="backend-gate-card">
+        <div className="auth-logo">R</div>
+        <p className="auth-tagline">RAGtfm</p>
+        <h1 className="backend-gate-title">{title}</h1>
+        <p className="backend-gate-copy">{detail}</p>
+
+        {checks.length > 0 && (
+          <div className="health-check-list">
+            {checks.map(([name, check]) => (
+              <div key={name} className="health-check-row">
+                <span className={`health-dot${check.ok ? ' health-dot--ok' : ' health-dot--bad'}`} />
+                <span>{formatCheckName(name)}</span>
+                <span className="health-check-detail">
+                  {check.ok
+                    ? check.latency_ms != null ? fmtMs(check.latency_ms) : 'ok'
+                    : check.error ?? 'unavailable'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="backend-retry">
+          <span className="spinner" />
+          <span>Retrying every {Math.round(HEALTH_RETRY_MS / 1000)}s</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HealthStatusPanel({ health }: { health: HealthReadyResult }) {
+  const checks = Object.entries(health.checks)
+
+  return (
+    <div className={`health-panel${health.ready ? ' health-panel--ready' : ' health-panel--bad'}`}>
+      <div className="health-panel-head">
+        <span className={`health-dot${health.ready ? ' health-dot--ok' : ' health-dot--bad'}`} />
+        <span>API {health.ready ? 'Ready' : health.status}</span>
+      </div>
+      {checks.length > 0 && (
+        <div className="health-mini-list">
+          {checks.map(([name, check]) => (
+            <span key={name} className="health-mini-item" title={check.error}>
+              <span className={`health-dot${check.ok ? ' health-dot--ok' : ' health-dot--bad'}`} />
+              {formatCheckName(name)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -144,6 +236,7 @@ function AuthScreen({ onAuth }: AuthScreenProps) {
               required
             />
           </div>
+
           {error && <p className="auth-error">{error}</p>}
           <button className="btn btn--primary btn--full" type="submit" disabled={loading}>
             {loading ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
@@ -157,6 +250,8 @@ function AuthScreen({ onAuth }: AuthScreenProps) {
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 function App() {
+  const [backendHealth, setBackendHealth] = useState<HealthReadyResult>(INITIAL_HEALTH)
+  const [backendChecked, setBackendChecked] = useState(false)
   const [token, setToken] = useState(() => localStorage.getItem('ragtfm_token') ?? '')
 
   // ── Documents state ──
@@ -180,7 +275,7 @@ function App() {
   const answerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ── Pagination ── 
+  // ── Pagination ──
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalDocs, setTotalDocs] = useState(0)
@@ -191,6 +286,37 @@ function App() {
     () => documents.filter(d => d.status.toUpperCase() === 'READY'),
     [documents],
   )
+
+  // ── Health check ──
+  useEffect(() => {
+    let active = true
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+    setBackendHealth(INITIAL_HEALTH)
+    setBackendChecked(false)
+
+    async function checkReady() {
+      const result = await checkBackendReady()
+      if (!active) return
+      setBackendHealth(result)
+      setBackendChecked(true)
+      retryTimer = setTimeout(checkReady, HEALTH_RETRY_MS)
+    }
+
+    void checkReady()
+
+    return () => {
+      active = false
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!backendHealth.ready) {
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+    }
+  }, [backendHealth.ready])
 
   // ── Toast ──
   function showToast(msg: string, isError = false) {
@@ -238,17 +364,17 @@ function App() {
 
   const refreshDocuments = useCallback(
     async (activeToken = token, page = currentPageRef.current) => {
-      if (!activeToken) return
+      if (!activeToken || !backendHealth.ready) return
       const data = await listDocuments(activeToken, page, PAGE_SIZE)
       setDocuments(data.documents)
       setTotalPages(data.pages)
       setTotalDocs(data.total)
     },
-    [token],
+    [backendHealth.ready, token],
   )
 
   useEffect(() => {
-    if (!token) return
+    if (!token || !backendHealth.ready) return
     let active = true
     listDocuments(token, 1, PAGE_SIZE)
       .then(data => {
@@ -263,8 +389,7 @@ function App() {
       active = false
       eventSourceRef.current?.close()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, backendHealth.ready])
 
   // Auto-scroll answer as tokens arrive
   useEffect(() => {
@@ -354,7 +479,11 @@ function App() {
     })()
   }
 
-  // ── Not logged in ──
+  // ── Gate: block the entire UI until the health check resolves ──
+  if (!backendChecked || !backendHealth.ready) {
+    return <BackendGate health={backendHealth} checked={backendChecked} />
+  }
+
   if (!token) return <AuthScreen onAuth={handleAuth} />
 
   const totalChunks = documents.reduce((t, d) => t + d.stored_chunk_count, 0)
@@ -370,6 +499,8 @@ function App() {
             <p className="sidebar-version">v0.1</p>
           </div>
         </div>
+
+        <HealthStatusPanel health={backendHealth} />
 
         <div className="sidebar-stats">
           <StatCard label="Documents" value={totalDocs.toString()} />
