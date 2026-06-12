@@ -54,6 +54,7 @@ GPU : Nvidia Geforce RTX 4090 24GB
 - [x] Loading states on all async actions
 - [x] Workspace summary tile (total documents, ready documents, total chunks)
 - [x] Auto-refresh for document ingestion status
+- [x] Pagination for large document lists
 
 ## Project Structure
 
@@ -140,5 +141,4 @@ All API calls are defined in [`src/api.ts`](src/api.ts). The frontend communicat
 | `GET` | `/health/ready` | Check if the API can serve traffic |
 
 ## Current Limitations
-- [ ] No pagination for large document lists
 - [ ] No markdown rendering for generated answers
