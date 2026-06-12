@@ -27,6 +27,9 @@ GPU : Nvidia Geforce RTX 4090 24GB
 
 ## Available Features
 
+### Health Checks
+- [x] Notify users of downed service by blocking usage
+
 ### Auth
 - [x] Login and register with email and password
 - [x] JWT token persisted in localStorage
@@ -134,6 +137,7 @@ All API calls are defined in [`src/api.ts`](src/api.ts). The frontend communicat
 | `DELETE` | `/documents/{id}` | Delete a document |
 | `POST` | `/ingest/pdf` | Upload a PDF for processing |
 | `POST` | `/rag/query` | Ask a question and get a grounded answer |
+| `GET` | `/health/ready` | Check if the API can serve traffic |
 
 ## Current Limitations
 - [ ] No pagination for large document lists
