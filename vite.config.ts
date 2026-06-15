@@ -8,12 +8,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/auth':      'http://localhost:8000',
-      '/documents': 'http://localhost:8000',
-      '/health':    'http://localhost:8000',
-      '/ingest':    'http://localhost:8000',
-      '/rag':       'http://localhost:8000',
-      '/retrieve':  'http://localhost:8000',
+      '/api/v1': 'http://localhost:8000',
     },
   },
 })
