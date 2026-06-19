@@ -6,7 +6,7 @@ import {
   deleteDocument,
   openDocumentEventSource,
 } from '../../api'
-import type { DocumentItem } from '../../api'
+import type { DocumentItem, DocumentListResponse } from '../../api'
 
 export function useDocuments(token: string, backendReady: boolean, page: number, pageSize: number) {
   const queryClient = useQueryClient()
@@ -33,22 +33,25 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
       }
 
       // Update the cache directly
-      queryClient.setQueryData(['documents', page, pageSize], (oldData: any) => {
-        if (!oldData) return oldData
-        return {
-          ...oldData,
-          documents: oldData.documents.map((doc: DocumentItem) =>
-            doc.document_id === eventData.document_id
-              ? {
-                  ...doc,
-                  status: eventData.status,
-                  chunk_count: eventData.chunk_count,
-                  stored_chunk_count: eventData.stored_chunk_count,
-                }
-              : doc
-          ),
-        }
-      })
+      queryClient.setQueryData(
+        ['documents', page, pageSize],
+        (oldData: DocumentListResponse | undefined) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: oldData.documents.map((doc: DocumentItem) =>
+              doc.document_id === eventData.document_id
+                ? {
+                    ...doc,
+                    status: eventData.status,
+                    chunk_count: eventData.chunk_count,
+                    stored_chunk_count: eventData.stored_chunk_count,
+                  }
+                : doc
+            ),
+          }
+        },
+      )
     })
 
     es.onerror = () => es.close()
