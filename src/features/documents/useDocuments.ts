@@ -11,14 +11,12 @@ import type { DocumentItem, DocumentListResponse } from '../../api'
 export function useDocuments(token: string, backendReady: boolean, page: number, pageSize: number) {
   const queryClient = useQueryClient()
 
-  // 1. Fetch documents
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['documents', page, pageSize],
     queryFn: () => listDocuments(token, page, pageSize),
     enabled: !!token && backendReady,
   })
 
-  // 2. Handle SSE updates
   useEffect(() => {
     if (!token || !backendReady) return
 
@@ -32,7 +30,6 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
         stored_chunk_count: number
       }
 
-      // Update the cache directly
       queryClient.setQueryData(
         ['documents', page, pageSize],
         (oldData: DocumentListResponse | undefined) => {
@@ -61,7 +58,6 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
     }
   }, [token, backendReady, queryClient, page, pageSize])
 
-  // 3. Mutations
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadPdf(token, file),
     onSuccess: () => {

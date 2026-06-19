@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './client'
+import { API_BASE_URL, notifyUnauthorized } from './client'
 
 export type RetrievedChunk = {
   chunk_id: string
@@ -46,6 +46,7 @@ export async function* askRag(
   })
 
   if (!response.ok || !response.body) {
+    if (response.status === 401) notifyUnauthorized()
     const errorText = await response.text()
     throw new Error(`Stream request failed: ${response.status} – ${errorText}`)
   }

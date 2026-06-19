@@ -2,6 +2,16 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 type RequestOptions = RequestInit & { token?: string }
 
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler
+}
+
+export function notifyUnauthorized(): void {
+  onUnauthorized?.()
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (options.token) headers.set('Authorization', `Bearer ${options.token}`)
@@ -9,6 +19,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
 
   if (!response.ok) {
+    if (response.status === 401 && options.token) notifyUnauthorized()
+
     const error = await response.json().catch(() => null)
     const detail = error?.detail
     const message =

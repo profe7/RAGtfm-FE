@@ -36,21 +36,17 @@ export function Dashboard() {
 
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
 
-  // Block the entire UI until the health check resolves
   if (!checked || !health.ready) {
     return <BackendGate health={health} checked={checked} />
   }
 
-  // Redirect to login if unauthenticated
   if (!token) {
     return <Navigate to="/login" replace />
   }
 
-  // Derived state
   const readyDocuments = documents.filter(d => d.status.toUpperCase() === 'READY')
   const totalChunks = documents.reduce((t, d) => t + d.stored_chunk_count, 0)
 
-  // Handlers
   const handleLogout = () => {
     logout()
   }

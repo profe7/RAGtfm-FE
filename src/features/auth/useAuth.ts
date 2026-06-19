@@ -1,20 +1,21 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
+import { logout as logoutApi } from '../../api'
+import { getToken, setToken as storeSetToken, subscribe } from './authStore'
 
 export function useAuth() {
-  const [token, setTokenState] = useState(() => localStorage.getItem('ragtfm_token') ?? '')
+  const token = useSyncExternalStore(subscribe, getToken, getToken)
 
-  const setToken = useCallback((newToken: string) => {
-    if (newToken) {
-      localStorage.setItem('ragtfm_token', newToken)
-    } else {
-      localStorage.removeItem('ragtfm_token')
-    }
-    setTokenState(newToken)
+  const setToken = useCallback((next: string) => {
+    storeSetToken(next)
   }, [])
 
   const logout = useCallback(() => {
-    setToken('')
-  }, [setToken])
+    const current = getToken()
+    storeSetToken('')
+    if (current) {
+      logoutApi(current).catch(() => {})
+    }
+  }, [])
 
   return { token, setToken, logout }
 }

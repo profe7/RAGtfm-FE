@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { askRag } from './rag'
 import type { RagStreamEvent } from './rag'
 
-/** Build a streaming Response whose body emits the given UTF-8 string chunks. */
 function streamResponse(chunks: string[], init: ResponseInit = {}) {
   const encoder = new TextEncoder()
   const body = new ReadableStream<Uint8Array>({
