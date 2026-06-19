@@ -30,7 +30,7 @@ describe('auth API', () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/v1/auth/register')
     expect(init.method).toBe('POST')
-    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+    expect((init.headers as Headers).get('Content-Type')).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual({ email: 'a@b.com', password: 'secret' })
   })
 
@@ -39,7 +39,7 @@ describe('auth API', () => {
 
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/v1/auth/login')
-    expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+    expect((init.headers as Headers).get('Content-Type')).toBe(
       'application/x-www-form-urlencoded',
     )
 
