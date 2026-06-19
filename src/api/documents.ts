@@ -68,6 +68,18 @@ export function deleteDocument(token: string, documentId: string) {
   return request<DeleteDocumentResponse>(`/documents/${documentId}`, { method: 'DELETE', token })
 }
 
-export function openDocumentEventSource(token: string): EventSource {
-  return new EventSource(`${API_BASE_URL}/documents/events?token=${encodeURIComponent(token)}`)
+type EventTicketResponse = {
+  ticket: string
+  expires_in: number
+}
+
+export function requestEventTicket(token: string) {
+  return request<EventTicketResponse>('/documents/events/ticket', { method: 'POST', token })
+}
+
+export async function openDocumentEventSource(token: string): Promise<EventSource> {
+  // EventSource can't send an Authorization header, so trade the JWT for a
+  // short-lived, single-use ticket and put only that in the URL.
+  const { ticket } = await requestEventTicket(token)
+  return new EventSource(`${API_BASE_URL}/documents/events?ticket=${encodeURIComponent(ticket)}`)
 }
