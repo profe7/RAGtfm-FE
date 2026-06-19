@@ -59,7 +59,6 @@ export async function* askRag(
       const { value, done } = await reader.read()
 
       if (done) {
-        // Flush any remaining partial line
         const remaining = lineBuffer.trim()
         if (remaining) {
           const event = tryParseLine(remaining)

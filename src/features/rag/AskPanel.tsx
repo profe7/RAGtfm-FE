@@ -16,7 +16,6 @@ export function AskPanel({ onAsk, ragResult, isStreaming }: AskPanelProps) {
   const [limit, setLimit] = useState(5)
   const answerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll answer as tokens arrive
   useEffect(() => {
     if (isStreaming && answerRef.current) {
       answerRef.current.scrollTop = answerRef.current.scrollHeight
