@@ -78,8 +78,6 @@ export function requestEventTicket(token: string) {
 }
 
 export async function openDocumentEventSource(token: string): Promise<EventSource> {
-  // EventSource can't send an Authorization header, so trade the JWT for a
-  // short-lived, single-use ticket and put only that in the URL.
   const { ticket } = await requestEventTicket(token)
   return new EventSource(`${API_BASE_URL}/documents/events?ticket=${encodeURIComponent(ticket)}`)
 }

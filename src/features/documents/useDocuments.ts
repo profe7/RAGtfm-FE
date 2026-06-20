@@ -56,8 +56,6 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
 
     const scheduleReconnect = () => {
       if (cancelled || reconnectTimer) return
-      // Each ticket is single-use, so native auto-reconnect can't work — mint a
-      // fresh one. Exponential backoff capped at 30s avoids hammering a down API.
       const delay = Math.min(1000 * 2 ** attempt, 30000)
       attempt += 1
       reconnectTimer = setTimeout(() => {
@@ -77,7 +75,6 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
         return
       }
 
-      // The effect may have been cleaned up while the ticket request was in flight.
       if (cancelled) {
         source.close()
         return
@@ -86,7 +83,7 @@ export function useDocuments(token: string, backendReady: boolean, page: number,
       es = source
       es.addEventListener('document_status', handleStatus)
       es.onopen = () => {
-        attempt = 0 // Connection is healthy again; reset backoff.
+        attempt = 0
       }
       es.onerror = () => {
         es?.close()
