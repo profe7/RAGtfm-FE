@@ -1,25 +1,60 @@
 import { useState } from 'react'
 import { askRag } from '../../api'
-import type { RagResponse } from '../../api'
+import type { RetrievedChunk } from '../../api'
+
+export type ChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources: RetrievedChunk[]
+  metrics: Record<string, number>
+}
+
+let messageCounter = 0
+const nextId = () => `m${++messageCounter}`
+
+function makeMessage(role: ChatMessage['role'], content: string): ChatMessage {
+  return { id: nextId(), role, content, sources: [], metrics: {} }
+}
 
 export function useRag(token: string) {
-  const [ragResult, setRagResult] = useState<RagResponse | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState('')
 
-  const askQuestion = async (question: string, limit: number, selectedDocumentIds: string[]) => {
+  const updateLastAssistant = (patch: (msg: ChatMessage) => ChatMessage) => {
+    setMessages(prev => {
+      const next = [...prev]
+      for (let i = next.length - 1; i >= 0; i--) {
+        if (next[i].role === 'assistant') {
+          next[i] = patch(next[i])
+          break
+        }
+      }
+      return next
+    })
+  }
+
+  const sendMessage = async (
+    question: string,
+    limit: number,
+    selectedDocumentIds: string[],
+  ) => {
     setIsStreaming(true)
     setError('')
-    setRagResult({ query: question, answer: '', metrics: {}, sources: [] })
+    setMessages(prev => [...prev, makeMessage('user', question), makeMessage('assistant', '')])
 
     try {
-      for await (const event of askRag(token, question, limit, selectedDocumentIds)) {
-        if (event.type === 'sources') {
-          setRagResult(prev => prev ? { ...prev, sources: event.data } : null)
+      for await (const event of askRag(token, question, limit, selectedDocumentIds, conversationId)) {
+        if (event.type === 'conversation') {
+          setConversationId(event.data.conversation_id)
+        } else if (event.type === 'sources') {
+          updateLastAssistant(msg => ({ ...msg, sources: event.data }))
         } else if (event.type === 'token') {
-          setRagResult(prev => prev ? { ...prev, answer: prev.answer + event.data } : null)
+          updateLastAssistant(msg => ({ ...msg, content: msg.content + event.data }))
         } else if (event.type === 'metrics') {
-          setRagResult(prev => prev ? { ...prev, metrics: event.data } : null)
+          updateLastAssistant(msg => ({ ...msg, metrics: event.data }))
         } else if (event.type === 'error') {
           throw new Error(event.data)
         }
@@ -32,5 +67,11 @@ export function useRag(token: string) {
     }
   }
 
-  return { ragResult, isStreaming, error, askQuestion }
+  const newChat = () => {
+    setMessages([])
+    setConversationId(null)
+    setError('')
+  }
+
+  return { messages, conversationId, isStreaming, error, sendMessage, newChat }
 }

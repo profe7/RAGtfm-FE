@@ -5,7 +5,7 @@ import { useBackendHealth } from '../features/health/useBackendHealth'
 import { BackendGate } from '../features/health/BackendGate'
 import { Sidebar } from '../components/layout/Sidebar'
 import { DocumentList } from '../features/documents/DocumentList'
-import { AskPanel } from '../features/rag/AskPanel'
+import { ChatPanel } from '../features/rag/ChatPanel'
 import { useDocuments } from '../features/documents/useDocuments'
 import { useRag } from '../features/rag/useRag'
 import { useToast } from '../hooks/useToast'
@@ -32,7 +32,7 @@ export function Dashboard() {
     deletingId,
   } = useDocuments(token, health.ready, currentPage, PAGE_SIZE)
 
-  const { ragResult, isStreaming, askQuestion } = useRag(token)
+  const { messages, isStreaming, sendMessage, newChat } = useRag(token)
 
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
 
@@ -76,10 +76,9 @@ export function Dashboard() {
     )
   }
 
-  const handleAsk = async (question: string, limit: number) => {
+  const handleSend = async (question: string, limit: number) => {
     try {
-      await askQuestion(question, limit, selectedDocumentIds)
-      showToast('Done.')
+      await sendMessage(question, limit, selectedDocumentIds)
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Stream failed', true)
     }
@@ -114,10 +113,12 @@ export function Dashboard() {
           onPageChange={setCurrentPage}
         />
 
-        <AskPanel
-          onAsk={handleAsk}
-          ragResult={ragResult}
+        <ChatPanel
+          messages={messages}
           isStreaming={isStreaming}
+          selectedCount={selectedDocumentIds.length}
+          onSend={handleSend}
+          onNewChat={newChat}
         />
       </main>
 

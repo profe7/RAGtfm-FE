@@ -112,6 +112,29 @@ describe('askRag', () => {
     expect(JSON.parse(init.body as string)).toEqual({ query: 'q', limit: 3 })
   })
 
+  it('includes conversation_id when continuing a conversation', async () => {
+    fetchMock.mockResolvedValue(streamResponse([]))
+    const events: RagStreamEvent[] = []
+    for await (const event of askRag('token', 'q', 3, [], 'conv-1')) events.push(event)
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse(init.body as string)).toEqual({
+      query: 'q',
+      limit: 3,
+      conversation_id: 'conv-1',
+    })
+  })
+
+  it('parses the leading conversation frame', async () => {
+    fetchMock.mockResolvedValue(
+      streamResponse(['{"type":"conversation","data":{"conversation_id":"conv-7"}}\n']),
+    )
+
+    const events = await collect()
+
+    expect(events).toEqual([{ type: 'conversation', data: { conversation_id: 'conv-7' } }])
+  })
+
   it('throws when the response status is not ok', async () => {
     fetchMock.mockResolvedValue(new Response('boom', { status: 500 }))
 

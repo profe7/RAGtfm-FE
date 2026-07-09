@@ -21,6 +21,7 @@ export type RagResponse = {
 }
 
 export type RagStreamEvent =
+  | { type: 'conversation'; data: { conversation_id: string } }
   | { type: 'sources'; data: RetrievedChunk[] }
   | { type: 'token'; data: string }
   | { type: 'metrics'; data: Record<string, number> }
@@ -31,6 +32,7 @@ export async function* askRag(
   query: string,
   limit: number,
   documentIds?: string[],
+  conversationId?: string | null,
 ): AsyncGenerator<RagStreamEvent, void, unknown> {
   const response = await fetch(`${API_BASE_URL}/rag/query`, {
     method: 'POST',
@@ -42,6 +44,7 @@ export async function* askRag(
       query,
       limit,
       ...(documentIds?.length ? { document_ids: documentIds } : {}),
+      ...(conversationId ? { conversation_id: conversationId } : {}),
     }),
   })
 
