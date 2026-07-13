@@ -1,4 +1,4 @@
-import { API_BASE_URL, notifyUnauthorized } from './client'
+import { API_BASE_URL, notifyUnauthorized, rateLimitMessage } from './client'
 
 export type RetrievedChunk = {
   chunk_id: string
@@ -33,6 +33,7 @@ export async function* askRag(
   limit: number,
   documentIds?: string[],
   conversationId?: string | null,
+  signal?: AbortSignal,
 ): AsyncGenerator<RagStreamEvent, void, unknown> {
   const response = await fetch(`${API_BASE_URL}/rag/query`, {
     method: 'POST',
@@ -46,10 +47,14 @@ export async function* askRag(
       ...(documentIds?.length ? { document_ids: documentIds } : {}),
       ...(conversationId ? { conversation_id: conversationId } : {}),
     }),
+    signal,
   })
 
   if (!response.ok || !response.body) {
     if (response.status === 401) notifyUnauthorized()
+    if (response.status === 429) {
+      throw new Error(rateLimitMessage(response.headers.get('Retry-After')))
+    }
     const errorText = await response.text()
     throw new Error(`Stream request failed: ${response.status} – ${errorText}`)
   }

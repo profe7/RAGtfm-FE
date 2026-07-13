@@ -12,6 +12,11 @@ async function* streamOf(events: RagStreamEvent[]) {
   for (const event of events) yield event
 }
 
+async function* throwingStream(error: Error): AsyncGenerator<RagStreamEvent> {
+  if (error) throw error
+  yield { type: 'error', data: 'unreachable' }
+}
+
 describe('useRag', () => {
   afterEach(() => {
     askRagMock.mockReset()
@@ -62,8 +67,12 @@ describe('useRag', () => {
       await result.current.sendMessage('follow-up?', 10, ['doc-1'])
     })
 
-    expect(askRagMock).toHaveBeenNthCalledWith(1, 'my-token', 'first?', 5, ['doc-1'], null)
-    expect(askRagMock).toHaveBeenNthCalledWith(2, 'my-token', 'follow-up?', 10, ['doc-1'], 'conv-9')
+    expect(askRagMock).toHaveBeenNthCalledWith(
+      1, 'my-token', 'first?', 5, ['doc-1'], null, expect.any(AbortSignal),
+    )
+    expect(askRagMock).toHaveBeenNthCalledWith(
+      2, 'my-token', 'follow-up?', 10, ['doc-1'], 'conv-9', expect.any(AbortSignal),
+    )
     expect(result.current.messages).toHaveLength(4)
   })
 
@@ -85,16 +94,37 @@ describe('useRag', () => {
     expect(result.current.conversationId).toBeNull()
   })
 
-  it('surfaces an error event and resets the streaming flag', async () => {
-    askRagMock.mockReturnValue(streamOf([{ type: 'error', data: 'backend exploded' }]))
+  it('records an inline error on the assistant turn when the stream fails', async () => {
+    askRagMock.mockReturnValue(throwingStream(new Error('backend exploded')))
 
     const { result } = renderHook(() => useRag('token'))
 
     await act(async () => {
-      await expect(result.current.sendMessage('hi', 5, [])).rejects.toThrow('backend exploded')
+      await result.current.sendMessage('hi', 5, [])
     })
 
     await waitFor(() => expect(result.current.error).toBe('backend exploded'))
+    expect(result.current.messages[1].error).toBe('backend exploded')
     expect(result.current.isStreaming).toBe(false)
+  })
+
+  it('retries the last request after a failure', async () => {
+    askRagMock.mockReturnValueOnce(throwingStream(new Error('network down')))
+
+    const { result } = renderHook(() => useRag('token'))
+
+    await act(async () => {
+      await result.current.sendMessage('hi', 5, [])
+    })
+    expect(result.current.messages[1].error).toBe('network down')
+
+    askRagMock.mockReturnValueOnce(streamOf([{ type: 'token', data: 'recovered' }]))
+    await act(async () => {
+      await result.current.retry()
+    })
+
+    expect(result.current.messages).toHaveLength(2)
+    expect(result.current.messages[1].content).toBe('recovered')
+    expect(result.current.messages[1].error).toBeUndefined()
   })
 })

@@ -12,6 +12,13 @@ export function notifyUnauthorized(): void {
   onUnauthorized?.()
 }
 
+export function rateLimitMessage(retryAfter?: string | null): string {
+  const seconds = retryAfter ? Number(retryAfter) : NaN
+  return Number.isFinite(seconds) && seconds > 0
+    ? `Too many requests — try again in ${seconds}s.`
+    : 'Too many requests — please slow down and try again shortly.'
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (options.token) headers.set('Authorization', `Bearer ${options.token}`)
@@ -20,6 +27,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     if (response.status === 401 && options.token) notifyUnauthorized()
+    if (response.status === 429) {
+      throw new Error(rateLimitMessage(response.headers.get('Retry-After')))
+    }
 
     const error = await response.json().catch(() => null)
     const detail = error?.detail

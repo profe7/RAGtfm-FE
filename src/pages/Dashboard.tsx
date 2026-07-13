@@ -32,7 +32,7 @@ export function Dashboard() {
     deletingId,
   } = useDocuments(token, health.ready, currentPage, PAGE_SIZE)
 
-  const { messages, isStreaming, sendMessage, newChat } = useRag(token)
+  const { messages, isStreaming, sendMessage, retry, stop, newChat } = useRag(token)
 
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
 
@@ -77,11 +77,7 @@ export function Dashboard() {
   }
 
   const handleSend = async (question: string, limit: number) => {
-    try {
-      await sendMessage(question, limit, selectedDocumentIds)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Stream failed', true)
-    }
+    await sendMessage(question, limit, selectedDocumentIds)
   }
 
   return (
@@ -118,6 +114,8 @@ export function Dashboard() {
           isStreaming={isStreaming}
           selectedCount={selectedDocumentIds.length}
           onSend={handleSend}
+          onStop={stop}
+          onRetry={retry}
           onNewChat={newChat}
         />
       </main>

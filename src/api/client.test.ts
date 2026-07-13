@@ -94,4 +94,12 @@ describe('request', () => {
 
     await expect(request('/health')).rejects.toThrow('Request failed with 502')
   })
+
+  it('throws a friendly rate-limit message on HTTP 429 using Retry-After', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(null, { status: 429, headers: { 'Retry-After': '12' } }),
+    )
+
+    await expect(request('/rag/query')).rejects.toThrow('try again in 12s')
+  })
 })

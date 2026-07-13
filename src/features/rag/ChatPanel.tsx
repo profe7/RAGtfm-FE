@@ -7,6 +7,8 @@ interface ChatPanelProps {
   isStreaming: boolean
   selectedCount: number
   onSend: (question: string, limit: number) => Promise<void>
+  onStop: () => void
+  onRetry: () => void
   onNewChat: () => void
 }
 
@@ -15,6 +17,8 @@ export function ChatPanel({
   isStreaming,
   selectedCount,
   onSend,
+  onStop,
+  onRetry,
   onNewChat,
 }: ChatPanelProps) {
   const [question, setQuestion] = useState('')
@@ -88,8 +92,14 @@ export function ChatPanel({
             </p>
           </div>
         ) : (
-          messages.map(msg => (
-            <ChatMessage key={msg.id} message={msg} isStreaming={isStreaming} />
+          messages.map((msg, i) => (
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              isStreaming={isStreaming}
+              isLast={i === messages.length - 1}
+              onRetry={onRetry}
+            />
           ))
         )}
       </div>
@@ -103,13 +113,19 @@ export function ChatPanel({
           rows={1}
           required
         />
-        <button
-          className="btn btn--primary chat-send"
-          type="submit"
-          disabled={!question.trim() || isStreaming}
-        >
-          {isStreaming ? <span className="spinner" /> : 'Send'}
-        </button>
+        {isStreaming ? (
+          <button className="btn btn--ghost chat-send" type="button" onClick={onStop}>
+            Stop
+          </button>
+        ) : (
+          <button
+            className="btn btn--primary chat-send"
+            type="submit"
+            disabled={!question.trim()}
+          >
+            Send
+          </button>
+        )}
         <span className="chat-scope">Searching {scope}</span>
       </form>
     </section>

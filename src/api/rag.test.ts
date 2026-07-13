@@ -140,4 +140,12 @@ describe('askRag', () => {
 
     await expect(collect()).rejects.toThrow('Stream request failed: 500')
   })
+
+  it('throws a friendly rate-limit error on HTTP 429', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('slow down', { status: 429, headers: { 'Retry-After': '30' } }),
+    )
+
+    await expect(collect()).rejects.toThrow('try again in 30s')
+  })
 })
