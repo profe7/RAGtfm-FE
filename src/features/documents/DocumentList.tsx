@@ -39,7 +39,7 @@ export function DocumentList({
   const readyDocuments = documents.filter(d => d.status.toUpperCase() === 'READY')
 
   return (
-    <section className="panel">
+    <section className="panel panel--documents">
       <div className="panel-head">
         <h2>Documents</h2>
         <button
@@ -63,34 +63,36 @@ export function DocumentList({
             const isCurrentlyDeleting = isDeleting && deletingId === doc.document_id
 
             return (
-              <label
+              <div
                 key={doc.document_id}
                 className={`doc-row${isSelected ? ' doc-row--selected' : ''}${!isReady ? ' doc-row--disabled' : ''}`}
               >
-                <input
-                  type="checkbox"
-                  disabled={!isReady}
-                  checked={isSelected}
-                  onChange={() => onToggleDoc(doc.document_id)}
-                />
-                <div className="doc-info">
-                  <span className="doc-name" title={doc.original_filename}>
-                    {doc.original_filename}
+                <label className="doc-select">
+                  <input
+                    type="checkbox"
+                    disabled={!isReady}
+                    checked={isSelected}
+                    onChange={() => onToggleDoc(doc.document_id)}
+                  />
+                  <span className="doc-info">
+                    <span className="doc-name" title={doc.original_filename}>
+                      {doc.original_filename}
+                    </span>
+                    <span className="doc-meta">
+                      {formatBytes(doc.size_bytes)} · {doc.stored_chunk_count}/{doc.chunk_count} chunks
+                    </span>
                   </span>
-                  <span className="doc-meta">
-                    {formatBytes(doc.size_bytes)} · {doc.stored_chunk_count}/{doc.chunk_count} chunks
-                  </span>
-                </div>
+                </label>
                 <StatusBadge status={doc.status} />
                 <button
                   type="button"
                   className="btn btn--danger btn--sm"
-                  onClick={e => { e.preventDefault(); onDelete(doc.document_id) }}
+                  onClick={() => onDelete(doc.document_id)}
                   disabled={isLoading || isProcessing || isDeleting}
                 >
                   {isCurrentlyDeleting ? '…' : 'Delete'}
                 </button>
-              </label>
+              </div>
             )
           })}
         </div>

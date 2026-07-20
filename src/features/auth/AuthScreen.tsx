@@ -46,11 +46,13 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
           <button
             type="button"
             className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
+            aria-pressed={mode === 'login'}
             onClick={() => setMode('login')}
           >Login</button>
           <button
             type="button"
             className={mode === 'register' ? 'auth-tab active' : 'auth-tab'}
+            aria-pressed={mode === 'register'}
             onClick={() => setMode('register')}
           >Register</button>
         </div>

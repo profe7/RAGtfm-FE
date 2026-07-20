@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { ChatMessage as ChatMessageType } from './useRag'
 import { ChatMessage } from './ChatMessage'
+import type { RetrievedChunk } from '../../api'
 
 interface ChatPanelProps {
   messages: ChatMessageType[]
@@ -10,6 +11,7 @@ interface ChatPanelProps {
   onStop: () => void
   onRetry: () => void
   onNewChat: () => void
+  onOpenEvidence: (source: RetrievedChunk) => void
 }
 
 export function ChatPanel({
@@ -20,6 +22,7 @@ export function ChatPanel({
   onStop,
   onRetry,
   onNewChat,
+  onOpenEvidence,
 }: ChatPanelProps) {
   const [question, setQuestion] = useState('')
   const [limit, setLimit] = useState(5)
@@ -57,7 +60,10 @@ export function ChatPanel({
   return (
     <section className="panel panel--chat">
       <div className="panel-head">
-        <h2>Chat</h2>
+        <div>
+          <p className="panel-kicker">Grounded assistant</p>
+          <h2>Research chat</h2>
+        </div>
         <div className="chat-head-actions">
           <div className="limit-control">
             <label htmlFor="limit-input">Sources</label>
@@ -84,7 +90,7 @@ export function ChatPanel({
       <div className="chat-thread" ref={threadRef}>
         {messages.length === 0 ? (
           <div className="chat-empty">
-            <div className="chat-empty-icon" aria-hidden="true">💬</div>
+            <div className="chat-empty-icon" aria-hidden="true">✦</div>
             <p className="chat-empty-title">Ask your documents anything</p>
             <p className="chat-empty-copy">
               Answers are grounded in your uploaded PDFs and remember the conversation,
@@ -99,6 +105,7 @@ export function ChatPanel({
               isStreaming={isStreaming}
               isLast={i === messages.length - 1}
               onRetry={onRetry}
+              onOpenEvidence={onOpenEvidence}
             />
           ))
         )}
@@ -109,7 +116,8 @@ export function ChatPanel({
           value={question}
           onChange={e => setQuestion(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up…  (Enter to send, Shift+Enter for a new line)"
+          aria-label="Ask a question"
+          placeholder="Ask a follow-up…"
           rows={1}
           required
         />

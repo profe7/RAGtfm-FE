@@ -25,9 +25,16 @@ interface ChatMessageProps {
   isStreaming: boolean
   isLast: boolean
   onRetry: () => void
+  onOpenEvidence?: (source: ChatMessageType['sources'][number]) => void
 }
 
-export function ChatMessage({ message, isStreaming, isLast, onRetry }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  isStreaming,
+  isLast,
+  onRetry,
+  onOpenEvidence,
+}: ChatMessageProps) {
   const isUser = message.role === 'user'
   const hasMetrics = Object.keys(message.metrics).length > 0
   const isActive = !isUser && isStreaming && isLast && !message.error
@@ -42,6 +49,11 @@ export function ChatMessage({ message, isStreaming, isLast, onRetry }: ChatMessa
   }, [message.sources])
 
   const openSource = (n: number) => {
+    const source = message.sources[n - 1]
+    if (source?.citation?.document_id) {
+      onOpenEvidence?.(source)
+      return
+    }
     const el = sourceRefs.current[n]
     if (el) {
       el.open = true
@@ -134,12 +146,24 @@ export function ChatMessage({ message, isStreaming, isLast, onRetry }: ChatMessa
                 }}
               >
                 <summary>
-                  <span>Source {i + 1}</span>
+                  <span>
+                    Source {i + 1}
+                    {src.citation?.page_numbers[0] ? ` · page ${src.citation.page_numbers[0]}` : ''}
+                  </span>
                   {src.rerank_score != null && (
                     <span className="source-score">score {src.rerank_score.toFixed(3)}</span>
                   )}
                 </summary>
                 <p className="source-text">{src.text}</p>
+                {src.citation?.document_id && (
+                  <button
+                    className="source-view-original"
+                    type="button"
+                    onClick={() => onOpenEvidence?.(src)}
+                  >
+                    View in original PDF
+                  </button>
+                )}
               </details>
             ))}
           </div>

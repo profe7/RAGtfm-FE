@@ -94,6 +94,37 @@ describe('useRag', () => {
     expect(result.current.conversationId).toBeNull()
   })
 
+  it('reopens persisted messages with their evidence and metrics', () => {
+    const { result } = renderHook(() => useRag('token'))
+
+    act(() => {
+      result.current.openConversation({
+        id: 'conv-saved',
+        title: 'Saved research',
+        created_at: '2026-07-21T00:00:00Z',
+        updated_at: '2026-07-21T00:01:00Z',
+        messages: [
+          {
+            id: 'm1',
+            role: 'assistant',
+            content: 'Saved answer',
+            sources: [{ chunk_id: 'c1', text: 'evidence', metadata: {} }],
+            metrics: { total_ms: 10 },
+            status: 'complete',
+            created_at: '2026-07-21T00:01:00Z',
+          },
+        ],
+      })
+    })
+
+    expect(result.current.conversationId).toBe('conv-saved')
+    expect(result.current.messages[0]).toMatchObject({
+      content: 'Saved answer',
+      metrics: { total_ms: 10 },
+    })
+    expect(result.current.messages[0].sources).toHaveLength(1)
+  })
+
   it('records an inline error on the assistant turn when the stream fails', async () => {
     askRagMock.mockReturnValue(throwingStream(new Error('backend exploded')))
 

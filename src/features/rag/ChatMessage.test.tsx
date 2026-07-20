@@ -5,7 +5,6 @@ import { ChatMessage } from './ChatMessage'
 import type { ChatMessage as ChatMessageType } from './useRag'
 
 beforeAll(() => {
-  // jsdom does not implement scrollIntoView; the citation click calls it.
   Element.prototype.scrollIntoView = vi.fn()
 })
 
@@ -72,6 +71,36 @@ describe('ChatMessage', () => {
 
     await user.click(screen.getByRole('link', { name: '2' }))
     expect(details2.open).toBe(true)
+  })
+
+  it('opens original PDF evidence when citation provenance is available', async () => {
+    const user = userEvent.setup()
+    const onOpenEvidence = vi.fn()
+    const source = {
+      chunk_id: 'doc-c1',
+      text: 'original evidence',
+      metadata: {},
+      citation: {
+        document_id: 'doc-1',
+        filename: 'report.pdf',
+        chunk_type: 'text',
+        page_numbers: [4],
+        source_locations: [],
+      },
+    }
+    render(
+      <ChatMessage
+        message={assistant({ content: 'Grounded claim [source: 1].', sources: [source] })}
+        isStreaming={false}
+        isLast
+        onRetry={() => {}}
+        onOpenEvidence={onOpenEvidence}
+      />,
+    )
+
+    await user.click(screen.getByRole('link', { name: '1' }))
+    expect(onOpenEvidence).toHaveBeenCalledWith(source)
+    expect(screen.getByText(/page 4/)).toBeTruthy()
   })
 
   it('shows an inline error with a Retry button that fires onRetry', async () => {

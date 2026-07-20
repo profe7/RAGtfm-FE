@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { askRag } from '../../api'
 import type { RetrievedChunk } from '../../api'
+import type { ConversationDetail } from '../../api'
 
 export type ChatMessage = {
   id: string
@@ -20,7 +21,7 @@ function makeMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return { id: nextId(), role, content, sources: [], metrics: {} }
 }
 
-export function useRag(token: string) {
+export function useRag(token: string, onConversationUpdated?: () => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -72,7 +73,6 @@ export function useRag(token: string) {
         }
       }
     } catch (err) {
-      // A user-initiated abort is a clean stop — keep whatever streamed so far.
       if (!controller.signal.aborted) {
         const message = err instanceof Error ? err.message : 'Stream failed'
         setError(message)
@@ -81,6 +81,7 @@ export function useRag(token: string) {
     } finally {
       if (abortRef.current === controller) abortRef.current = null
       setIsStreaming(false)
+      onConversationUpdated?.()
     }
   }
 
@@ -109,5 +110,34 @@ export function useRag(token: string) {
     lastRequestRef.current = null
   }
 
-  return { messages, conversationId, isStreaming, error, sendMessage, retry, stop, newChat }
+  const openConversation = (conversation: ConversationDetail) => {
+    abortRef.current?.abort()
+    setConversationId(conversation.id)
+    setMessages(
+      conversation.messages.map(message => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        sources: message.sources ?? [],
+        metrics: message.metrics ?? {},
+        ...(message.status === 'interrupted'
+          ? { error: 'This response was interrupted before completion.' }
+          : {}),
+      })),
+    )
+    setError('')
+    lastRequestRef.current = null
+  }
+
+  return {
+    messages,
+    conversationId,
+    isStreaming,
+    error,
+    sendMessage,
+    retry,
+    stop,
+    newChat,
+    openConversation,
+  }
 }

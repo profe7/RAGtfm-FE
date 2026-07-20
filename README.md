@@ -47,7 +47,9 @@ GPU : Nvidia Geforce RTX 4090 24GB
 - [x] Optional document selection — restrict the query to specific documents via checkboxes
 - [x] Configurable source limit (1–20)
 - [x] Answer display with source chunks
+- [x] Evidence Lens: click an inline citation to open the original PDF page with the supporting region highlighted
 - [x] Retrieval performance metrics display (dense, BM25, RRF, rerank, total timings)
+- [x] Persistent conversation history with reopen, rename, and delete actions
 
 ### UX
 - [x] Toast notifications for success and error states
@@ -136,9 +138,14 @@ All API calls are defined in [`src/api.ts`](src/api.ts). The frontend communicat
 | `POST` | `/auth/logout` | Logout |
 | `GET` | `/documents` | List documents for the current user |
 | `DELETE` | `/documents/{id}` | Delete a document |
+| `GET` | `/documents/{id}/content` | Load an authenticated original PDF for evidence verification |
 | `POST` | `/ingest/pdf` | Upload a PDF for processing |
 | `POST` | `/rag/query` | Ask a question and get a grounded answer |
+| `GET` | `/conversations` | List saved conversations |
+| `GET` | `/conversations/{id}` | Reopen a conversation with saved sources |
+| `PATCH` | `/conversations/{id}` | Rename a conversation |
+| `DELETE` | `/conversations/{id}` | Delete a conversation |
 | `GET` | `/health/ready` | Check if the API can serve traffic |
 
 ## Current Limitations
-- [ ] No markdown rendering for generated answers
+- [ ] Exact PDF highlighting depends on coordinate metadata being available; the UI falls back to the extracted source text when it is absent

@@ -4,6 +4,7 @@ export type RetrievedChunk = {
   chunk_id: string
   text: string
   metadata: Record<string, unknown>
+  citation?: CitationSource
   distance?: number | null
   rrf_score?: number | null
   retrieval_sources?: string[] | null
@@ -11,6 +12,27 @@ export type RetrievedChunk = {
   bm25_rank?: number | null
   rerank_score?: number | null
   rerank_rank?: number | null
+}
+
+export type SourceLocation = {
+  element_id?: string | null
+  source_order?: number | null
+  element_type?: string | null
+  page_number?: number | null
+  coordinates?: {
+    points?: number[][]
+    layout_width?: number
+    layout_height?: number
+    system?: string
+  } | null
+}
+
+export type CitationSource = {
+  document_id?: string | null
+  filename?: string | null
+  chunk_type?: string | null
+  page_numbers: number[]
+  source_locations: SourceLocation[]
 }
 
 export type RagResponse = {

@@ -1,4 +1,4 @@
-import { request, API_BASE_URL } from './client'
+import { request, API_BASE_URL, notifyUnauthorized } from './client'
 
 export type DocumentItem = {
   document_id: string
@@ -6,9 +6,6 @@ export type DocumentItem = {
   content_type: string
   size_bytes: number
   sha256: string
-  storage_backend: string
-  storage_uri: string
-  storage_path: string
   status: string
   chunk_count: number
   stored_chunk_count: number
@@ -21,9 +18,6 @@ export type StoredDocument = {
   content_type: string
   size_bytes: number
   sha256: string
-  storage_backend: string
-  storage_uri: string
-  storage_path: string
 }
 
 export type DeleteDocumentResponse = {
@@ -66,6 +60,22 @@ export function uploadPdf(token: string, file: File) {
 
 export function deleteDocument(token: string, documentId: string) {
   return request<DeleteDocumentResponse>(`/documents/${documentId}`, { method: 'DELETE', token })
+}
+
+export async function getDocumentContent(token: string, documentId: string): Promise<ArrayBuffer> {
+  const response = await fetch(
+    `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/content`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!response.ok) {
+    if (response.status === 401) notifyUnauthorized()
+    throw new Error(
+      response.status === 404
+        ? 'The cited document is no longer available.'
+        : 'Could not load the cited document.',
+    )
+  }
+  return response.arrayBuffer()
 }
 
 type EventTicketResponse = {
